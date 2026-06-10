@@ -15,7 +15,7 @@ int currentAteqEnable()
     return CurWorkPar.ATEQ_Enable;
 }
 //等待ATEQ数据时间
-const int kAteqDataTimeoutMs = 10000;
+const int kAteqDataTimeoutMs = 5000;
 const int kProductReadyTimeoutMs = 5000;
 const int kPreScanResetWaitMs = 500;
 const int kPhysicalResetClearWarnMs = 3000;
@@ -144,6 +144,7 @@ void mWorkTask::resetLeakCycleState()
         cycleAteqEnable = currentAteqEnable();
         ateqDataWaitMs = 0;
         plcLeakResultLatched = false;
+        plcOverallResultOk = true;
         ateq1DataReceived = false;
         ateq2DataReceived = false;
         ateq1UiCleared = false;
@@ -210,6 +211,15 @@ void mWorkTask::finishLeakCycleAfterResult()
 void mWorkTask::slot_onAteqDataReceived(int device, const QString &pressure, const QString &leakage)
 {
     acceptAteqData(device, pressure, leakage);
+}
+
+int mWorkTask::activeAteqEnable() const
+{
+    QMutexLocker locker(&m_leakCycleMutex);
+    if(cycleAteqEnable >= 1 && cycleAteqEnable <= 3){
+        return cycleAteqEnable;
+    }
+    return currentAteqEnable();
 }
 
 bool mWorkTask::acceptAteqData(int device, const QString &pressure, const QString &leakage)
@@ -835,11 +845,6 @@ void mWorkTask::Step_JL()
                 needLatchPlcResult = !plcLeakResultLatched;
             }
             if(needLatchPlcResult){
-                if(!m_ModbusRtu->plcOverallHasResult()){
-                    return;
-                }
-
-                v_Step_JL_Reset = ENM_STEP::Exhaust;
                 int ateqEnableForResult = 0;
                 {
                     QMutexLocker locker(&m_leakCycleMutex);
@@ -849,7 +854,8 @@ void mWorkTask::Step_JL()
                         cycleAteqEnable = ateqEnableForResult;
                     }
                 }
-                const bool finalOk = m_ModbusRtu->plcOverallResult();
+                const bool overallHasResult = m_ModbusRtu->plcOverallHasResult();
+                const bool overallResult = m_ModbusRtu->plcOverallResult();
                 const bool leak1HasResult = mModbusRtu::getBit(m_ModbusRtu->plc_D1901, 6);
                 const bool leak1Result = mModbusRtu::getBit(m_ModbusRtu->plc_D1901, 7);
                 const bool leak2HasResult = mModbusRtu::getBit(m_ModbusRtu->plc_D1901, 9);
@@ -870,33 +876,49 @@ void mWorkTask::Step_JL()
                     emit sign_setled(result, color);
                 };
 
-                if(ateqEnableForResult == 3){
-                    if(finalOk){
-                        CurWorkPar.Result_Pisitive = "OK";
-                        CurWorkPar.Result_Negative = "OK";
-                    }else{
-                        CurWorkPar.Result_Pisitive = leak1HasResult ? (leak1Result ? "OK" : "NG") : "NG";
-                        CurWorkPar.Result_Negative = leak2HasResult ? (leak2Result ? "OK" : "NG") : "NG";
-                        if(CurWorkPar.Result_Pisitive == "OK" && CurWorkPar.Result_Negative == "OK"){
-                            CurWorkPar.Result_Pisitive = "NG";
-                        }
+                bool finalOk = false;
+                if(ateqEnableForResult == 1){
+                    if(!leak1HasResult){
+                        return;
                     }
-                    displayPlcResult(false, CurWorkPar.Result_Pisitive == "OK");
-                    displayPlcResult(true, CurWorkPar.Result_Negative == "OK");
-                }else{
-                    CurWorkPar.Result_Pisitive = finalOk ? "OK" : "NG";
+                    finalOk = leak1Result;
+                    CurWorkPar.Result_Pisitive = leak1Result ? "OK" : "NG";
                     CurWorkPar.Result_Negative = "OK";
-                    displayPlcResult(false, finalOk);
+                    displayPlcResult(false, leak1Result);
+                }else if(ateqEnableForResult == 2){
+                    if(!leak2HasResult){
+                        return;
+                    }
+                    finalOk = leak2Result;
+                    CurWorkPar.Result_Pisitive = leak2Result ? "OK" : "NG";
+                    CurWorkPar.Result_Negative = "OK";
+                    displayPlcResult(false, leak2Result);
+                }else if(ateqEnableForResult == 3){
+                    if(!leak1HasResult || !leak2HasResult){
+                        return;
+                    }
+                    finalOk = leak1Result && leak2Result;
+                    CurWorkPar.Result_Pisitive = leak1Result ? "OK" : "NG";
+                    CurWorkPar.Result_Negative = leak2Result ? "OK" : "NG";
+                    displayPlcResult(false, leak1Result);
+                    displayPlcResult(true, leak2Result);
+                }else{
+                    return;
                 }
 
-                qDebug() << "[PLC] overall result latched"
+                v_Step_JL_Reset = ENM_STEP::Exhaust;
+
+                qDebug() << "[PLC] selected leak result latched"
                          << "ok=" << finalOk
                          << "ATEQ=" << ateqEnableForResult
+                         << "overallHasResult=" << overallHasResult
+                         << "overallOk=" << overallResult
                          << "D1901=" << m_ModbusRtu->plc_D1901;
 
                 {
                     QMutexLocker locker(&m_leakCycleMutex);
                     plcLeakResultLatched = true;
+                    plcOverallResultOk = finalOk;
                     ateqDataWaitMs = 0;
                 }
                 setDetectionTimerActive(false);
@@ -910,9 +932,7 @@ void mWorkTask::Step_JL()
 
             // Keep PLC physical reset latch state after leak result.
             // Do not issue the D1900.4 all-reset pulse automatically on cycle finish.
-            if(requiredAteqDataReceived()
-                    || CurWorkPar.Result_Pisitive == "NG"
-                    || CurWorkPar.Result_Negative == "NG"){
+            if(requiredAteqDataReceived()){
                 finishLeakCycleAfterResult();
                 return;
             }
@@ -929,23 +949,22 @@ void mWorkTask::Step_JL()
                 ateq1Snapshot = ateq1DataReceived;
                 ateq2Snapshot = ateq2DataReceived;
             }
-            if(m_ModbusRtu->plcSelectedLeakIdle()){
-                qDebug() << "[PLC] manual reset detected from D1901 idle, finish current cycle";
-                finishLeakCycleAfterResult();
-                return;
-            }
             if(ateqWaitSnapshot >= kAteqDataTimeoutMs){
                 qDebug() << "[ATEQ] wait data timeout"
                          << "enable=" << ateqEnableSnapshot
                          << "ateq1=" << ateq1Snapshot
                          << "ateq2=" << ateq2Snapshot;
-                emit sign_setled(MFormJLStation::mutualUi->ui->led_Result, m_color::Red);
-                setTowerLight(false, false, true);
-                v_EQ_JL_Error = -1;
-                b_gameover = true;
-                v_Step_JL = ENM_STEP::NE;
-                v_Step_WorkModel = ENM_STEP_WORK_MODEL::NE_WORK;
-                clearCurrentBarcode();
+                if(plcOverallResultOk){
+                    qDebug() << "[ATEQ] timeout after PLC OK, finish with missing ATEQ data";
+                    emit sign_setled(MFormJLStation::mutualUi->ui->led_Result, m_color::Green);
+                    setTowerLight(false, true, false);
+                }else{
+                    qDebug() << "[ATEQ] timeout after PLC NG, finish with missing ATEQ data";
+                    emit sign_setled(MFormJLStation::mutualUi->ui->led_Result, m_color::Red);
+                    setTowerLight(false, false, true);
+                    v_EQ_JL_Error = -1;
+                }
+                finishLeakCycleAfterResult();
                 return;
             }
             return;
@@ -1038,13 +1057,20 @@ void mWorkTask::Step_JL_Reset()
             AutoPrintLabel_EndCountTime();
 
 //            emit sign_setled(MFormJLStation::mutualUi->ui->led_Exhaust, m_color::Green);
-            if(CurWorkPar.Result_Pisitive != "" && CurWorkPar.Result_Negative != "" ){
+            bool plcNgLatched = false;
+            {
+                QMutexLocker locker(&m_leakCycleMutex);
+                plcNgLatched = plcLeakResultLatched && !plcOverallResultOk;
+            }
+            const bool resultReady = (CurWorkPar.Result_Pisitive != "" && CurWorkPar.Result_Negative != "")
+                    || plcNgLatched;
+            if(resultReady){
                 b_mainStationFin = true;
 
                 if(B_next_reset){
 
                 }else{
-                    if(CurWorkPar.Result_Pisitive == "OK" && CurWorkPar.Result_Negative == "OK"){
+                    if(!plcNgLatched && CurWorkPar.Result_Pisitive == "OK" && CurWorkPar.Result_Negative == "OK"){
                         setTowerLight(false, true, false);
                         qDebug() << "打印OK标签";
                         QString error_code;                        
@@ -1060,7 +1086,7 @@ void mWorkTask::Step_JL_Reset()
                         if(MFormJLStation::mutualUi->needPlaceNgProductChecked()){
                             B_need_grating = true;
                         }
-                        if(CurWorkPar.Result_Pisitive == "NG" || CurWorkPar.Result_Negative == "NG"){
+                        if(plcNgLatched || CurWorkPar.Result_Pisitive == "NG" || CurWorkPar.Result_Negative == "NG"){
                             setTowerLight(false, false, true);
                             qDebug() << "打印NG标签";
                             lastProductResult = "NG";

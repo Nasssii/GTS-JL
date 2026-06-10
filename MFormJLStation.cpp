@@ -1,6 +1,8 @@
 #include "MFormJLStation.h"
 #include "ui_MFormJLStation.h"
 #include <QEvent>
+#include <QMetaObject>
+#include <QSignalBlocker>
 
 
 QString lastProcutCode;
@@ -261,9 +263,7 @@ void MFormJLStation::slot_updateAteqDisplay(int device, const QString &pressure,
         return;
     }
 
-    const int ateqEnable = (m_MFormWorkStep != nullptr && m_MFormWorkStep->ui != nullptr)
-            ? m_MFormWorkStep->ui->Cbt_ATEQ_Enable->currentIndex()
-            : 0;
+    const int ateqEnable = m_WorkTask->activeAteqEnable();
 
     bool secondItem = false;
     bool shouldDisplay = false;
@@ -278,6 +278,9 @@ void MFormJLStation::slot_updateAteqDisplay(int device, const QString &pressure,
     }
 
     if(!shouldDisplay){
+        qDebug() << "[ATEQ] display ignored by active enable"
+                 << "device=" << device
+                 << "activeEnable=" << ateqEnable;
         return;
     }
 
@@ -363,20 +366,44 @@ void MFormJLStation::applyManualResetUi()
 
 void MFormJLStation::on_CBT_Channel_currentTextChanged(const QString &arg1)
 {
+    qDebug() << "[CHANNEL] channel change begin" << arg1;
     if( arg1 == "" ){
         ui->frame->setEnabled(false);
         return;
     }
+    if(m_MFormWorkStep == nullptr || m_MFormWorkStep->ui == nullptr
+            || m_Form_PrintSetting == nullptr || m_Form_PrintSetting->ui == nullptr){
+        qDebug() << "[CHANNEL] channel change ignored, object null"
+                 << "workStep=" << (m_MFormWorkStep != nullptr)
+                 << "printSetting=" << (m_Form_PrintSetting != nullptr);
+        return;
+    }
     on_BTN_Save_clicked();
     ui->frame->setEnabled(true);
-    m_MFormWorkStep->ui->Channel->setCurrentText(arg1);
+    {
+        QSignalBlocker blocker(m_MFormWorkStep->ui->Channel);
+        m_MFormWorkStep->ui->Channel->setCurrentText(arg1);
+    }
+    qDebug() << "[CHANNEL] workstep channel synced" << arg1;
     int v_load = m_MFormWorkStep->Load_Work_ChannelPars(arg1);
     qDebug() << "加载成功标志：" << v_load;
-    m_Form_PrintSetting->ui->CBT_Channel->setCurrentText(arg1);
+    qDebug() << "[CHANNEL] work params loaded" << v_load;
+    {
+        QSignalBlocker blocker(m_Form_PrintSetting->ui->CBT_Channel);
+        m_Form_PrintSetting->ui->CBT_Channel->setCurrentText(arg1);
+    }
+    const bool printLoadOk = QMetaObject::invokeMethod(
+                m_Form_PrintSetting,
+                "on_CBT_Channel_currentTextChanged",
+                Qt::DirectConnection,
+                Q_ARG(QString, arg1));
+    qDebug() << "[CHANNEL] print channel synced" << arg1 << "loaded=" << printLoadOk;
     ui->LE_Product_Number->setText(CurWorkPar.project_name);
+    qDebug() << "[CHANNEL] product text synced" << CurWorkPar.project_name;
     CurWorkPar.channel = arg1;
     if(v_load > 0 && m_ModbusRtu != nullptr){
         const bool productWriteOk = m_ModbusRtu->writeCurrentProductWords();
+        qDebug() << "[CHANNEL] product words written" << productWriteOk;
         qDebug() << "[PLC] channel changed, sync product words =" << productWriteOk;
     }
 }

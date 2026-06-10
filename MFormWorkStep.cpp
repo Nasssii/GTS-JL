@@ -1,6 +1,8 @@
 
 #include "MFormWorkStep.h"
 #include "ui_MFormWorkStep.h"
+#include <QMetaObject>
+#include <QSignalBlocker>
 MFormWorkStep *m_MFormWorkStep;
 
 MFormWorkStep::MFormWorkStep(QWidget *parent) :
@@ -137,7 +139,18 @@ void MFormWorkStep::on_Channel_currentTextChanged(const QString &arg1)
     INI_File->destroyed();
 
     qDebug() << "切换品番";
-    m_Form_PrintSetting->ui->CBT_Channel->setCurrentText(arg1);
+    if(m_Form_PrintSetting != nullptr && m_Form_PrintSetting->ui != nullptr){
+        QSignalBlocker blocker(m_Form_PrintSetting->ui->CBT_Channel);
+        m_Form_PrintSetting->ui->CBT_Channel->setCurrentText(arg1);
+        const bool printLoadOk = QMetaObject::invokeMethod(
+                    m_Form_PrintSetting,
+                    "on_CBT_Channel_currentTextChanged",
+                    Qt::DirectConnection,
+                    Q_ARG(QString, arg1));
+        qDebug() << "[CHANNEL] workstep print channel synced" << arg1 << "loaded=" << printLoadOk;
+    }else{
+        qDebug() << "[CHANNEL] workstep print sync ignored, object null";
+    }
 }
 
 void MFormWorkStep::on_Btn_Sure_clicked()
@@ -170,7 +183,9 @@ void MFormWorkStep::on_Btn_Use_clicked()
 
     // 3. 同步主界面当前频道和产品显示
     if(MFormJLStation::mutualUi != nullptr){
-        MFormJLStation::mutualUi->ui->CBT_Channel->setCurrentText(channel);
+        if(MFormJLStation::mutualUi->ui->CBT_Channel->currentText() != channel){
+            MFormJLStation::mutualUi->ui->CBT_Channel->setCurrentText(channel);
+        }
         MFormJLStation::mutualUi->ui->LE_Product_Number->setText(CurWorkPar.project_name);
     }
 

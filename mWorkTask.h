@@ -195,6 +195,7 @@ public:
     void SaveMysqlDatas(QString& errorInfo);
     bool acceptBarcode(const QString &barcode, const MTestingUiSnapshot &snapshot, QString *rejectReason = nullptr);
     bool acceptAteqData(int device, const QString &pressure, const QString &leakage);
+    int activeAteqEnable() const;
     void requestManualReset();
 public slots:
     void WorkTask();
@@ -283,6 +284,7 @@ private:
     int cycleAteqEnable = 0;
     int ateqDataWaitMs = 0;
     bool plcLeakResultLatched = false;
+    bool plcOverallResultOk = true;
     bool ateq1DataReceived = false;
     bool ateq2DataReceived = false;
     bool ateq1UiCleared = false;

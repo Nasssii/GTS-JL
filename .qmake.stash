@@ -13,7 +13,7 @@ QMAKE_CXX.INCDIRS = \
     E:/QT/Qt5.14.2/Tools/mingw730_64/lib/gcc/x86_64-w64-mingw32/7.3.0/include/c++/backward \
     E:/QT/Qt5.14.2/Tools/mingw730_64/lib/gcc/x86_64-w64-mingw32/7.3.0/include \
     E:/QT/Qt5.14.2/Tools/mingw730_64/lib/gcc/x86_64-w64-mingw32/7.3.0/include-fixed \
-    E:/QT/Qt5.14.2/Tools/mingw730_64/x86_64-w64-mingw32/include
+    E:/QT/Qt5.14.2/Tools/mingw730_64/x86_64-w64-miw32/include
 QMAKE_CXX.LIBDIRS = \
     E:/QT/Qt5.14.2/Tools/mingw730_64/lib/gcc/x86_64-w64-mingw32/7.3.0 \
     E:/QT/Qt5.14.2/Tools/mingw730_64/lib/gcc \
