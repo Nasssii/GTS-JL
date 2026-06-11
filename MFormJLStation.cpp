@@ -115,7 +115,7 @@ MFormJLStation::MFormJLStation(QWidget *parent)
     ui->led_Loosen->hide();
     ui->led_Exhaust->hide();
     ui->led_LockProduct->hide();
-    ui->BTN_Start->hide();
+    //ui->BTN_Start->hide();
     ui->BTN_Reset->show();
     ui->LB_EMC_Stop->hide();
     ui->led_EMC_Stop->hide();
@@ -672,15 +672,13 @@ void MFormJLStation::on_BTN_Login_clicked()
 }
 void MFormJLStation::on_BTN_Save_clicked()
 {
-    QSettings *INI_File = new QSettings(QApplication::applicationDirPath() + "/System/System.ini", QSettings::IniFormat);
-    INI_File->setIniCodec(QTextCodec::codecForName("GB2312"));
+    QSettings INI_File(QApplication::applicationDirPath() + "/System/System.ini", QSettings::IniFormat);
+    INI_File.setIniCodec(QTextCodec::codecForName("GB2312"));
 
-    INI_File->setValue("LE_EQ_Number", ui->LE_EQ_Number->text());
-    INI_File->setValue("LE_Batch", ui->LE_Batch->text());
-    INI_File->setValue("LE_Operator_Code", ui->LE_Operator_Code->text());
-    INI_File->setValue("CBT_Channel", ui->CBT_Channel->currentText());
-
-    INI_File->destroyed();
+    INI_File.setValue("LE_EQ_Number", ui->LE_EQ_Number->text());
+    INI_File.setValue("LE_Batch", ui->LE_Batch->text());
+    INI_File.setValue("LE_Operator_Code", ui->LE_Operator_Code->text());
+    INI_File.setValue("CBT_Channel", ui->CBT_Channel->currentText());
 }
 /**
  * @brief MFormJLStation::objectEnable

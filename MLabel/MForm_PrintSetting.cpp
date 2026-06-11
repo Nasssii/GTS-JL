@@ -54,27 +54,26 @@ int MForm_PrintSetting::days_of_year()
 void MForm_PrintSetting::slot_ClearSerialNumber()
 {
     QString path = QApplication::applicationDirPath() + tr("/setting/%1.ini").arg(objectName());
-    QSettings *INI_File = new QSettings(path, QSettings::IniFormat);
-    INI_File->setIniCodec(QTextCodec::codecForName("GB2312"));
+    QSettings INI_File(path, QSettings::IniFormat);
+    INI_File.setIniCodec(QTextCodec::codecForName("GB2312"));
 
     QString date = QDate::currentDate().toString("YYYY_MM_dd");
     bool b_clear = false;
     for(int i=0; i<50; i++){
 
-        INI_File->beginGroup(QString::number(i));
-        if(INI_File->value("clear_date") == date){
+        INI_File.beginGroup(QString::number(i));
+        if(INI_File.value("clear_date") == date){
             b_clear = false;
         }else{
             b_clear = true;
-            INI_File->setValue("clear_date", date);
+            INI_File.setValue("clear_date", date);
         }
         if(b_clear){
             //确定需要清楚
-            INI_File->setValue("label_number", "000000");
+            INI_File.setValue("label_number", "000000");
         }
-        INI_File->endGroup();
+        INI_File.endGroup();
     }
-    INI_File->destroyed();
 }
 
 /**
@@ -83,18 +82,17 @@ void MForm_PrintSetting::slot_ClearSerialNumber()
 void MForm_PrintSetting::load_FileINI()
 {
     QString path = QApplication::applicationDirPath() + "/System/System.ini";
-    QSettings *INI_File = new QSettings(path, QSettings::IniFormat);
-    INI_File->setIniCodec(QTextCodec::codecForName("GB2312"));
+    QSettings INI_File(path, QSettings::IniFormat);
+    INI_File.setIniCodec(QTextCodec::codecForName("GB2312"));
 
-    INI_File->beginGroup("Printer");
+    INI_File.beginGroup("Printer");
 
-    printer_driver_ok = INI_File->value("cbt_print_drive").toString();
-    printer_driver_ng = INI_File->value("cbt_print_drive_ng").toString();
+    printer_driver_ok = INI_File.value("cbt_print_drive").toString();
+    printer_driver_ng = INI_File.value("cbt_print_drive_ng").toString();
     ui->cbt_print_drive->setCurrentText(printer_driver_ok);
     ui->cbt_print_drive_ng->setCurrentText(printer_driver_ng);
 
-    INI_File->endGroup();
-    INI_File->destroyed();
+    INI_File.endGroup();
 
     qDebug() << "打印机名称：" << printer_driver_ng << printer_driver_ok;
 
@@ -103,8 +101,8 @@ void MForm_PrintSetting::load_FileINI()
 void MForm_PrintSetting::on_BTN_Save_clicked()
 {
     QString path = QApplication::applicationDirPath() + tr("/setting/%1.ini").arg(objectName());
-    QSettings *INI_File = new QSettings(path, QSettings::IniFormat);
-    INI_File->setIniCodec(QTextCodec::codecForName("GB2312"));
+    QSettings INI_File(path, QSettings::IniFormat);
+    INI_File.setIniCodec(QTextCodec::codecForName("GB2312"));
 /*
     INI_File->beginGroup("Printer");
     INI_File->setValue("cbt_print_drive", ui->cbt_print_drive->currentText());
@@ -118,20 +116,19 @@ void MForm_PrintSetting::on_BTN_Save_clicked()
     QString channel = ui->CBT_Channel->currentText();
 
     if(channel.toUInt() > 0){
-        INI_File->beginGroup(channel);
-        INI_File->setValue("LE_TitleNumber", ui->LE_TitleNumber->text());
-        INI_File->setValue("LE_TitleName", ui->LE_TitleName->text());
-        INI_File->setValue("LE_Date", ui->LE_Date->text());
-        INI_File->setValue("sbox_year",ui->sbox_year->value());
-        INI_File->setValue("sbox_days",ui->sbox_days->value());
-        INI_File->setValue("label_number", ui->LE_Number->text());
+        INI_File.beginGroup(channel);
+        INI_File.setValue("LE_TitleNumber", ui->LE_TitleNumber->text());
+        INI_File.setValue("LE_TitleName", ui->LE_TitleName->text());
+        INI_File.setValue("LE_Date", ui->LE_Date->text());
+        INI_File.setValue("sbox_year",ui->sbox_year->value());
+        INI_File.setValue("sbox_days",ui->sbox_days->value());
+        INI_File.setValue("label_number", ui->LE_Number->text());
 
-        INI_File->setValue("cbx_location",ui->CBX_Location->currentIndex());
-        INI_File->setValue("cbx_mode",ui->CBX_Mode->currentIndex());
+        INI_File.setValue("cbx_location",ui->CBX_Location->currentIndex());
+        INI_File.setValue("cbx_mode",ui->CBX_Mode->currentIndex());
 
-        INI_File->endGroup();
+        INI_File.endGroup();
     }
-    INI_File->destroyed();
 }
 /**
  * @brief MForm_PrintLabel::autoPrinte  自动打印
@@ -264,14 +261,12 @@ void MForm_PrintSetting::slot_Printe_Label_OK(QString channel)
 #elif 1
 
     QString path = QApplication::applicationDirPath() + tr("/setting/%1.ini").arg(objectName());
-    QSettings *INI_File = new QSettings(path, QSettings::IniFormat);
-    INI_File->setIniCodec(QTextCodec::codecForName("GB2312"));
+    QSettings INI_File(path, QSettings::IniFormat);
+    INI_File.setIniCodec(QTextCodec::codecForName("GB2312"));
 
-    INI_File->beginGroup(ui->CBT_Channel->currentText());
-    INI_File->setValue("label_number", ui->LE_Number->text());
-    INI_File->endGroup();
-
-    INI_File->destroyed();
+    INI_File.beginGroup(ui->CBT_Channel->currentText());
+    INI_File.setValue("label_number", ui->LE_Number->text());
+    INI_File.endGroup();
 
 #endif
 
@@ -330,14 +325,12 @@ void MForm_PrintSetting::on_BTN_autoPrint_clicked()
 #elif 1
 
     QString path = QApplication::applicationDirPath() + tr("/setting/%1.ini").arg(objectName());
-    QSettings *INI_File = new QSettings(path, QSettings::IniFormat);
-    INI_File->setIniCodec(QTextCodec::codecForName("GB2312"));
+    QSettings INI_File(path, QSettings::IniFormat);
+    INI_File.setIniCodec(QTextCodec::codecForName("GB2312"));
 
-    INI_File->beginGroup(channel);
-    INI_File->setValue("label_number", ui->LE_Number->text());
-    INI_File->endGroup();
-
-    INI_File->destroyed();
+    INI_File.beginGroup(channel);
+    INI_File.setValue("label_number", ui->LE_Number->text());
+    INI_File.endGroup();
 
 #endif
 
@@ -365,28 +358,27 @@ void MForm_PrintSetting::on_CBT_Channel_currentTextChanged(const QString &arg1)
         return;
     }
     QString path = QApplication::applicationDirPath() + tr("/setting/%1.ini").arg(objectName());
-    QSettings *INI_File = new QSettings(path, QSettings::IniFormat);
-    INI_File->setIniCodec(QTextCodec::codecForName("GB2312"));
+    QSettings INI_File(path, QSettings::IniFormat);
+    INI_File.setIniCodec(QTextCodec::codecForName("GB2312"));
 
     QString channel = ui->CBT_Channel->currentText();
 
-    INI_File->beginGroup(arg1);
-    ui->LE_TitleNumber->setText(INI_File->value("LE_TitleNumber").toString());
-    ui->LE_TitleName->setText(INI_File->value("LE_TitleName").toString());
+    INI_File.beginGroup(arg1);
+    ui->LE_TitleNumber->setText(INI_File.value("LE_TitleNumber").toString());
+    ui->LE_TitleName->setText(INI_File.value("LE_TitleName").toString());
 
     ui->LE_Date->setText(QDate::currentDate().toString("yyyy-MM-dd"));
     ui->sbox_year->setValue(QDate::currentDate().toString("yy").toInt());
     ui->sbox_days->setValue(QDate::currentDate().dayOfYear());
-    ui->LE_Number->setText(QString("%1").arg(INI_File->value("label_number").toInt(), 6, 10, QLatin1Char('0')));
+    ui->LE_Number->setText(QString("%1").arg(INI_File.value("label_number").toInt(), 6, 10, QLatin1Char('0')));
 
-    ui->CBX_Location->setCurrentIndex(INI_File->value("cbx_location").toInt());
-    ui->CBX_Mode->setCurrentIndex(INI_File->value("cbx_mode").toInt());
+    ui->CBX_Location->setCurrentIndex(INI_File.value("cbx_location").toInt());
+    ui->CBX_Mode->setCurrentIndex(INI_File.value("cbx_mode").toInt());
 
-    INI_File->endGroup();
+    INI_File.endGroup();
 
-    INI_File->setValue("ReadMe", "系统配置");
+    INI_File.setValue("ReadMe", "系统配置");
 
-    INI_File->destroyed();
 }
 /**
  * @brief MForm_PrintSetting::on_cbt_print_drive_ng_currentTextChanged  ng打印机
